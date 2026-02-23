@@ -1,0 +1,512 @@
+<html lang="en" vid="0"><head vid="1">
+    <meta charset="UTF-8" vid="2">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" vid="3">
+    <title vid="4">Vault Sentinel // Laser Grid Control</title>
+    <style vid="5">
+        :root {
+            --neon-blue: #0066ff;
+            --neon-cyan: #00f7ff;
+            --neon-white: #e0f0ff;
+            --deep-dark: #020408;
+            --panel-bg: rgba(0, 10, 20, 0.6);
+            --alert-red: #ff2a2a;
+        }
+
+        @font-face {
+            font-family: 'HUD-Mono';
+            src: local('Courier New'); 
+            font-weight: 700;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: var(--neon-cyan);
+            font-family: 'Segoe UI', 'Roboto', Helvetica, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        
+        .ambient-void {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, #001a4d 0%, #000000 70%);
+            z-index: -2;
+        }
+
+        .scan-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        
+        .hud-container {
+            width: 90vw;
+            height: 80vh;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 20px;
+            position: relative;
+        }
+
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 20px;
+            border-bottom: 1px solid rgba(0, 247, 255, 0.3);
+            padding-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        h1 {
+            font-family: 'HUD-Mono', monospace;
+            font-size: 24px;
+            margin: 0;
+            text-shadow: 0 0 10px var(--neon-blue);
+            color: var(--neon-white);
+        }
+
+        .system-status {
+            font-family: 'HUD-Mono', monospace;
+            font-size: 14px;
+            color: var(--neon-blue);
+            display: flex;
+            gap: 20px;
+        }
+
+        .status-pill {
+            padding: 4px 12px;
+            border: 1px solid var(--neon-blue);
+            border-radius: 12px;
+            box-shadow: 0 0 8px var(--neon-blue), inset 0 0 8px rgba(0, 102, 255, 0.2);
+        }
+
+        
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            height: 100%;
+        }
+
+        
+        .sensor-module {
+            background: var(--panel-bg);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            border-radius: 4px; 
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+        }
+
+        .sensor-module:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 25px rgba(0, 102, 255, 0.4);
+        }
+
+        
+        .emitter-housing {
+            width: 100%;
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .emitter-ring {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid var(--neon-blue);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px var(--neon-blue), inset 0 0 10px var(--neon-blue);
+            position: relative;
+        }
+
+        .emitter-core {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--neon-white) 0%, var(--neon-blue) 60%, transparent 100%);
+            box-shadow: 0 0 30px var(--neon-cyan);
+            animation: pulse-core 3s infinite ease-in-out;
+        }
+
+        
+        .connection-line {
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(to bottom, var(--neon-blue), transparent);
+            opacity: 0.5;
+        }
+
+        
+        .graph-container {
+            flex-grow: 1;
+            position: relative;
+            border-top: 1px solid rgba(0, 102, 255, 0.2);
+            padding-top: 10px;
+            overflow: hidden;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        
+        .meta-data {
+            font-family: 'HUD-Mono', monospace;
+            font-size: 10px;
+            color: rgba(0, 247, 255, 0.7);
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .label {
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            color: var(--neon-white);
+            text-shadow: 0 0 5px var(--neon-blue);
+        }
+
+        
+        @keyframes pulse-core {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 50px var(--neon-cyan); }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+
+        
+        .sensor-module.breached {
+            border-color: var(--alert-red);
+            box-shadow: 0 0 30px rgba(255, 42, 42, 0.3);
+        }
+        .sensor-module.breached .emitter-ring {
+            border-color: var(--alert-red);
+            box-shadow: 0 0 15px var(--alert-red), inset 0 0 10px var(--alert-red);
+        }
+        .sensor-module.breached .emitter-core {
+            background: radial-gradient(circle, #fff 0%, var(--alert-red) 60%, transparent 100%);
+            box-shadow: 0 0 40px var(--alert-red);
+            animation: pulse-panic 0.5s infinite;
+        }
+        .sensor-module.breached h2 {
+            color: var(--alert-red);
+            text-shadow: 0 0 10px var(--alert-red);
+        }
+
+        @keyframes pulse-panic {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        
+        .hud-overlay {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+
+        .hud-curve {
+            position: fixed;
+            top: 10%;
+            left: 5%;
+            width: 90%;
+            height: 80%;
+            border-radius: 50px;
+            border: 1px solid rgba(0, 102, 255, 0.1);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+    </style>
+</head>
+<body vid="6">
+
+    <div class="ambient-void" vid="7"></div>
+    <div class="scan-lines" vid="8"></div>
+    <div class="hud-curve" vid="9"></div>
+
+    <div class="hud-container" vid="10">
+        <header vid="11">
+            <div vid="12">
+                <h1 vid="13">Vault Sentinel // V.09</h1>
+                <div style="font-size: 10px; color: rgba(0,247,255,0.5); letter-spacing: 4px;" vid="14">SECURE CONNECTION ESTABLISHED</div>
+            </div>
+            <div class="system-status" vid="15">
+                <span vid="16">GRID POWER: 98.4%</span>
+                <span class="status-pill" vid="17">SYSTEM ARMED</span>
+            </div>
+        </header>
+
+        <div class="sensor-grid" vid="18">
+            
+            <div class="sensor-module" id="laser-1" vid="19">
+                <div class="label" vid="20">EMITTER ALPHA</div>
+                <div class="emitter-housing" vid="21">
+                    <div class="emitter-ring" vid="22">
+                        <div class="emitter-core" vid="23"></div>
+                    </div>
+                    <div class="connection-line" vid="24"></div>
+                </div>
+                <div class="meta-data" vid="25">
+                    <span vid="26">WV: 450nm</span>
+                    <span class="readout" vid="27">STABLE</span>
+                </div>
+                <div class="graph-container" vid="28">
+                    <canvas id="canvas-1" vid="29"></canvas>
+                </div>
+            </div>
+
+            <div class="sensor-module" id="laser-2" vid="30">
+                <div class="label" vid="31">EMITTER BETA</div>
+                <div class="emitter-housing" vid="32">
+                    <div class="emitter-ring" vid="33">
+                        <div class="emitter-core" vid="34"></div>
+                    </div>
+                    <div class="connection-line" vid="35"></div>
+                </div>
+                <div class="meta-data" vid="36">
+                    <span vid="37">WV: 452nm</span>
+                    <span class="readout" vid="38">STABLE</span>
+                </div>
+                <div class="graph-container" vid="39">
+                    <canvas id="canvas-2" vid="40"></canvas>
+                </div>
+            </div>
+
+            <div class="sensor-module" id="laser-3" vid="41">
+                <div class="label" vid="42">EMITTER GAMMA</div>
+                <div class="emitter-housing" vid="43">
+                    <div class="emitter-ring" vid="44">
+                        <div class="emitter-core" vid="45"></div>
+                    </div>
+                    <div class="connection-line" vid="46"></div>
+                </div>
+                <div class="meta-data" vid="47">
+                    <span vid="48">WV: 448nm</span>
+                    <span class="readout" vid="49">STABLE</span>
+                </div>
+                <div class="graph-container" vid="50">
+                    <canvas id="canvas-3" vid="51"></canvas>
+                </div>
+            </div>
+
+            <div class="sensor-module" id="laser-4" vid="52">
+                <div class="label" vid="53">EMITTER DELTA</div>
+                <div class="emitter-housing" vid="54">
+                    <div class="emitter-ring" vid="55">
+                        <div class="emitter-core" vid="56"></div>
+                    </div>
+                    <div class="connection-line" vid="57"></div>
+                </div>
+                <div class="meta-data" vid="58">
+                    <span vid="59">WV: 455nm</span>
+                    <span class="readout" vid="60">STABLE</span>
+                </div>
+                <div class="graph-container" vid="61">
+                    <canvas id="canvas-4" vid="62"></canvas>
+                </div>
+            </div>
+
+            <div class="sensor-module" id="laser-5" vid="63">
+                <div class="label" vid="64">EMITTER EPSILON</div>
+                <div class="emitter-housing" vid="65">
+                    <div class="emitter-ring" vid="66">
+                        <div class="emitter-core" vid="67"></div>
+                    </div>
+                    <div class="connection-line" vid="68"></div>
+                </div>
+                <div class="meta-data" vid="69">
+                    <span vid="70">WV: 449nm</span>
+                    <span class="readout" vid="71">STABLE</span>
+                </div>
+                <div class="graph-container" vid="72">
+                    <canvas id="canvas-5" vid="73"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hud-overlay" vid="74"></div>
+
+    <script vid="75">
+        
+        
+        
+        class LaserGraph {
+            constructor(canvasId, color, isBreached = false) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.color = color;
+                this.data = [];
+                this.maxPoints = 50;
+                this.width = this.canvas.parentElement.clientWidth;
+                this.height = this.canvas.parentElement.clientHeight;
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+                this.noiseOffset = Math.random() * 100;
+                this.isBreached = isBreached;
+                
+                
+                for(let i=0; i<this.maxPoints; i++) {
+                    this.data.push(0.8); 
+                }
+                
+                this.animate();
+            }
+
+            update() {
+                
+                let baseLevel = this.isBreached ? 0.2 : 0.8; 
+                let noise = (Math.random() - 0.5) * 0.1;
+                let newValue = baseLevel + noise;
+                
+                
+                if(newValue > 1) newValue = 1;
+                if(newValue < 0) newValue = 0;
+
+                this.data.push(newValue);
+                if(this.data.length > this.maxPoints) {
+                    this.data.shift();
+                }
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, this.height - (this.data[0] * this.height));
+
+                
+                for (let i = 0; i < this.data.length - 1; i++) {
+                    const x_mid = (i + 0.5) * (this.width / this.maxPoints);
+                    const y_mid = this.height - ((this.data[i] + this.data[i+1])/2 * this.height);
+                    const x_end = (i + 1) * (this.width / this.maxPoints);
+                    const y_end = this.height - (this.data[i + 1] * this.height);
+                    
+                    this.ctx.quadraticCurveTo(
+                        i * (this.width / this.maxPoints), 
+                        this.height - (this.data[i] * this.height),
+                        x_mid, 
+                        y_mid
+                    );
+                }
+                
+                
+                this.ctx.strokeStyle = this.isBreached ? '#ff2a2a' : '#00f7ff';
+                this.ctx.lineWidth = 2;
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowColor = this.ctx.strokeStyle;
+                this.ctx.stroke();
+
+                
+                this.ctx.lineTo(this.width, this.height);
+                this.ctx.lineTo(0, this.height);
+                this.ctx.closePath();
+                const gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
+                if (this.isBreached) {
+                    gradient.addColorStop(0, 'rgba(255, 42, 42, 0.4)');
+                    gradient.addColorStop(1, 'rgba(255, 42, 42, 0)');
+                } else {
+                    gradient.addColorStop(0, 'rgba(0, 247, 255, 0.2)');
+                    gradient.addColorStop(1, 'rgba(0, 247, 255, 0)');
+                }
+                this.ctx.fillStyle = gradient;
+                this.ctx.fill();
+            }
+
+            setBreached(status) {
+                this.isBreached = status;
+            }
+
+            animate() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(this.animate.bind(this));
+            }
+        }
+
+        
+        const graphs = [];
+        for(let i=1; i<=5; i++) {
+            graphs.push(new LaserGraph(`canvas-${i}`));
+        }
+
+        
+        window.addEventListener('resize', () => {
+            graphs.forEach(g => {
+                g.width = g.canvas.parentElement.clientWidth;
+                g.height = g.canvas.parentElement.clientHeight;
+                g.canvas.width = g.width;
+                g.canvas.height = g.height;
+            });
+        });
+
+        
+        setInterval(() => {
+            const randomLaser = Math.floor(Math.random() * 5);
+            const module = document.querySelectorAll('.sensor-module')[randomLaser];
+            
+            
+            if(!module.classList.contains('breached')) {
+                module.classList.add('breached');
+                module.querySelector('.readout').textContent = "INTERRUPTED";
+                module.querySelector('.readout').style.color = "#ff2a2a";
+                graphs[randomLaser].setBreached(true);
+
+                
+                setTimeout(() => {
+                    module.classList.remove('breached');
+                    module.querySelector('.readout').textContent = "STABLE";
+                    module.querySelector('.readout').style.color = "rgba(0, 247, 255, 0.7)";
+                    graphs[randomLaser].setBreached(false);
+                }, 3000);
+            }
+        }, 5000);
+
+    </script>
+
+</body></html>
